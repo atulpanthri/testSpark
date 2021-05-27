@@ -1,12 +1,15 @@
+from utils import cleanup
 from pyspark.sql import SparkSession
 from pyspark.sql.types import StructType, StructField, IntegerType, StringType, DateType,FloatType
 import json
 import os
 from pyspark.sql.functions import regexp_replace, col
+from datetime import date
+
+import subprocess as sp
+
 
 #from pyspark.sql.functions import regexp_replace, col
-
-
 
 def config_parser(team,control_id,path):
     "the method will parse file return "
@@ -29,7 +32,35 @@ def config_parser(team,control_id,path):
 
     return(schema,config)
 
-def extraction(team, control_id ,path, spark):
+def extraction(team, control_id ,path):
+    """
+        extraction of files from source. 
+        putting into staging area.
+
+    """
+    sourcePath      = config["sourcePath"]
+    destinitionPath = config["destinitionPath"]
+    fileFormat      = config["fileFormat"]
+    fileSeparator   = config["fileSeparator"]
+    fileName        = config["srcFileName"]
+
+    dateString = date.today().strftime("%Y%m%d")
+
+    sourceFile = os.path.join(sourcePath,fileName)
+
+    desFile = os.path.join(destinitionPath,team,str(control_id),dateString,fileName)
+
+    #print(sourceFile)
+    #print(desFile)
+
+    #sourceFile = rsourceFile
+    print(sourceFile)
+    print(desFile)
+
+    sp.call(["copy",sourceFile,desFile],shell = True)
+
+
+def transformation(team, control_id ,path, spark):
     """
      this function do extraction
 
@@ -43,14 +74,21 @@ def extraction(team, control_id ,path, spark):
     destinitionPath = config["destinitionPath"]
     fileFormat      = config["fileFormat"]
     fileDelimeter   = config["fileDelimeter"]
-    fileName        = config["fileName"]
+    fileName        = config["srcFileName"]
+    destFileName    = config["destFileName"]
+    destFileExt     = config["destiFileExt"]
+    table           = config["tableName"]
+
+    dateString  = date.today().strftime("%Y%m%d")
 
     file = os.path.join(sourcePath,fileName)
+
+    out_file = os.path.join(destinitionPath,team,table,dateString)
 
     data = spark.read.format(fileFormat).schema(schema).option("sep",fileDelimeter ).\
             option("mode","failFast").load(file)
 
-    print(destinitionPath)
+    print(out_file)
 
     data1 = data.withColumn("manager_id", regexp_replace(col("manager_id"),"null","0")).\
             withColumn("department_id",regexp_replace(col("department_id"),"null","0"))
@@ -58,21 +96,11 @@ def extraction(team, control_id ,path, spark):
     data2 = data1.withColumn("manager_id",col("manager_id").cast('int')).\
             withColumn("department_id",col("department_id").cast('int'))
 
-
-    #data2.select("department_id").distinct().show(data2.count())
-
-    #data2.printSchema()
-
-    data2.write.csv(destinitionPath)
+   
+    data2.write.csv(out_file)
     
-    #data.write.format("csv").option("path",destinitionPath)
-
-    #data.show()
-
-def transform(config):
-    """
-        this method work to transform data.
-    """
+    cleanup.cleanup(out_file,table+'_'+dateString+'.'+destFileExt)
+  
 
 if __name__ == "__main__":
     
@@ -81,11 +109,16 @@ if __name__ == "__main__":
 
     path = conf_dict['configPath']
 
-    print(path)
-    
-    spark = SparkSession.builder.appName("sample1").master("local[*]").getOrCreate()
+    #print(path)
 
-    extraction("ad", 100 ,path, spark)
+    schema,config = config_parser('ad',100,path)
+
+    extraction("ad",100,path)
+
+    
+    #spark = SparkSession.builder.appName("sample1").master("local[*]").getOrCreate()
+
+    #extraction("ad", 100 ,path, spark)
     
     #result = config_parser("ad",100,path)
 
