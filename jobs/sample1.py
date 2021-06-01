@@ -8,6 +8,9 @@ from datetime import date
 
 import subprocess as sp
 
+from coreUtils.etl import Etl
+
+
 
 #from pyspark.sql.functions import regexp_replace, col
 
@@ -103,17 +106,22 @@ def transformation(team, control_id ,path, spark):
   
 
 if __name__ == "__main__":
+
+    etl = Etl()
+    etl.test()
+
+# if __name__ == "__main__":
     
-    with open ('D:/spark-project/configs/etl_config.json', 'r') as f:
-        conf_dict = json.load(f)
+#     with open ('D:/spark-project/configs/etl_config.json', 'r') as f:
+#         conf_dict = json.load(f)
 
-    path = conf_dict['configPath']
+#     path = conf_dict['configPath']
 
-    #print(path)
+#     #print(path)
 
-    schema,config = config_parser('ad',100,path)
+#     schema,config = config_parser('ad',100,path)
 
-    extraction("ad",100,path)
+#     extraction("ad",100,path)
 
     
     #spark = SparkSession.builder.appName("sample1").master("local[*]").getOrCreate()
