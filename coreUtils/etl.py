@@ -1,8 +1,9 @@
+import configparser
 import subprocess as sb
 from configparser import ConfigParser
-import pandas
-
-
+from coreUtils.feedConfig import FeedConnection
+from datetime import date
+import os 
 
 
 class Etl:
@@ -11,9 +12,18 @@ class Etl:
       resuability"""
 
 
-    def create_directory(self,path):
+    def __init__(self,feed_key):
 
-        sb.call(["mkdir",path])
+        feedConn = FeedConnection()
+        self.config = feedConn.get_feed_config(feed_key)
+
+    @staticmethod
+    def create_directory(path):
+
+        if not os.path.exists(path):
+            os.makedirs(path)
+
+        #sb.call(["mkdir",path])
 
 
     def copy_files(self, src_path, dest_path):
@@ -21,39 +31,76 @@ class Etl:
 
         sb.call(['copy',src_path,dest_path],shell=True)
 
-    def get_df_postgres_query(self, spark, config,query):
+    def get_df_postgres_query(self, spark,feed_key):
 
         """ This functionality will connect to database and execute query 
             and create dataframe """
 
+        
+        db_properties={}
 
-        config_parser = ConfigParser()
+        db_url = self.config['Database Url']+"/"+self.config["Database Name"]
+        db_properties['user']=self.config['User Name']
+        db_properties['password']=self.config['Password']
+        db_properties['driver']=self.config['Driver']
 
-        config_parser.read(r'D:\spark\testSpark\coreUtils\config.ini')
+        print(db_url)
+        print(db_properties)
 
-        print(config_parser.sections())
+        # df = spark.read \
+        #     .format("jdbc")\
+        #     .option("url", r"jdbc:postgresql://database-1.cfgcrzvguhx1.ap-southeast-1.rds.amazonaws.com:5432/postgres") \
+        #     .option("dbtable", "emp") \
+        #     .option("user", "postgres") \
+        #     .option("password", "Etlpostgres") \
+        #     .option("driver","org.postgresql.Driver")\
+        #     .load()
 
-        db_config = config_parser['Database']
-
-        url = db_config['url']
-        driver = db_config['driver']
-        user   = db_config['user']
-        password = db_config['password']
-        dbTable  = db_config['dbTable']
-
-        df = spark.read.format("jdbc")\
-                .option("url",url)\
-                .option("driver",driver)\
-                .option("user",user) \
-                .option("password",password)\
-                .option("dbtable",query)
-
+        df = spark.read.jdbc(url=db_url,table="emp",properties=db_properties).cache()
+    
         return df
+
+    def save_df_to_postgres(self,df):
+
+        db_properties={}
+
+        db_url = self.config['Database Url']+"/"+self.config["Database Name"]
+        db_properties['user']=self.config['User Name']
+        db_properties['password']=self.config['Password']
+        db_properties['driver']=self.config['Driver']
+
+        target_table = self.config['Target Table Name']
+
+        print(target_table)
+        df.write.mode("append").jdbc(url=db_url,table=target_table,properties =db_properties)
+
+    @staticmethod
+    def def_stringify_date():
+        #this method give today date in string format.
+
+        return date.today().strftime("%Y_%m_%d")
+
+
+    def save_df_to_hive(self,df):
+        #this function will save dataframe from to file
+
+        target_file_format = self.config['Target File format']
+        target_file_name = self.config['Target File Name']
+        target_table_name = self.config['Target Table Name']
+        partition = Etl.def_stringify_date()
+        
+        path =r"D:\user\app\data\ad\staging\ad"
+
+        full_path = os.path.join(path, target_table_name,partition)
+        
+        print(full_path)
+        #Etl.create_directory(full_path)
+        df.write.format(target_file_format).option("header","true").save(full_path)
+    
 
     def test(self):
         print("this is test")
 
+# etl = Etl()
 
-#etl = Etl()
-
-#etl.get_df_postgres_query('spark', 'config','query')
+# etl.save_df_to_hive('spark', 'config','query')
