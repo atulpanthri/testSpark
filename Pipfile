@@ -7,6 +7,7 @@ name = "pypi"
 pyspark = "*"
 psycopg2-binary = "*"
 pandas = "*"
+psycopg2 = "*"
 
 [dev-packages]
 

@@ -1,5 +1,7 @@
 
-create table feed_group(feed_grp_id serial primary key,group_name VARCHAR,team VARCHAR,database VARCHAR)
+create table feed_group(feed_grp_id serial primary key,div VARCHAR,team VARCHAR,database VARCHAR)
+
+
 
 create table ds(ds_key serial primary key, ds_name VARCHAR)
 
